@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="ta">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Malli Akka Monitoring Class</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Thambi+2:wght@500;700;800&family=Nunito:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: classroom player (teal board stage + avatar) on the left, lesson register on the right; stacks on phones */
+:root{
+  --bg:#EEF5F2; --surface:#FFFFFF; --ink:#1B2B29; --muted:#566C68; --line:#D3E2DD;
+  --accent:#E8931A; --rose:#D94C68; --done:#2E8B57;
+  --stage:#17423F; --stage-ink:#F3FAF7; --stage-soft:#A9CFC6; --term:#0A1A18;
+  --display:"Baloo Thambi 2","Nunito",system-ui,sans-serif;
+  --body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1817; --surface:#152321; --ink:#E4EFEC; --muted:#93AAA5; --line:#253836;
+  --accent:#F2A93B; --rose:#EE6F88; --done:#5CC08A; --stage:#123633; --term:#071311; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1817; --surface:#152321; --ink:#E4EFEC; --muted:#93AAA5; --line:#253836;
+  --accent:#F2A93B; --rose:#EE6F88; --done:#5CC08A; --stage:#123633; --term:#071311; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px}
+h1{font:800 clamp(1.6rem,4vw,2.3rem)/1.1 var(--display);margin:0;text-wrap:balance}
+h1 span{color:var(--rose)}
+.tag{color:var(--muted);margin:0;font-size:.95rem}
+.tag a{color:var(--rose);font-weight:700;text-decoration:none}.tag a:hover{text-decoration:underline}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;align-items:start}
+@media (max-width:900px){.main{grid-template-columns:minmax(0,1fr)}}
+
+/* Stage */
+.player{display:grid;gap:12px;min-width:0}
+.stage{position:relative;background:var(--stage);color:var(--stage-ink);border-radius:18px;overflow:hidden;
+  aspect-ratio:16/9;display:grid;grid-template-columns:36% 1fr;max-width:100%}
+.stage::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle at 18% 85%,rgba(255,255,255,.08),transparent 45%)}
+.avatar{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:10px 4px 0}
+.avatar svg{width:100%;max-width:240px;height:auto;animation:bob 4s ease-in-out infinite}
+.nametag{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);background:var(--accent);color:#2A1A02;
+  font:700 .8rem/1 var(--display);padding:6px 12px 4px;border-radius:999px;white-space:nowrap}
+.board{min-width:0;display:flex;flex-direction:column;justify-content:center;padding:18px 22px 18px 6px;gap:10px}
+.lesson-chip{font:600 .72rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--stage-soft)}
+.bview{animation:pop .45s ease both;min-width:0}
+.b-a{font:800 clamp(1.8rem,6vw,3.6rem)/1.05 var(--display);color:var(--accent)}
+.b-b{font:600 clamp(1rem,2.4vw,1.4rem)/1.3 var(--body);color:var(--stage-ink);margin-top:6px}
+.b-list h3{margin:0 0 8px;font:700 clamp(1.05rem,2.4vw,1.4rem)/1.2 var(--display);color:var(--accent)}
+.b-list ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.b-list li{display:grid;grid-template-columns:minmax(80px,auto) 1fr;gap:12px;align-items:baseline;font-size:clamp(.8rem,1.8vw,1rem);
+  animation:pop .4s ease both}
+.b-list code{font:600 .95em var(--mono);color:#FFE3B0;background:rgba(0,0,0,.25);padding:2px 8px;border-radius:6px;white-space:nowrap}
+.term{background:var(--term);border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.35);min-width:0}
+.term-bar{display:flex;gap:6px;align-items:center;padding:8px 12px;background:rgba(255,255,255,.06)}
+.term-bar i{width:10px;height:10px;border-radius:50%;background:#E05A5A}
+.term-bar i:nth-child(2){background:#E8B33A}.term-bar i:nth-child(3){background:#4CB86B}
+.term-bar span{margin-left:8px;font:.72rem var(--mono);color:var(--stage-soft)}
+.term-body{padding:12px 14px;font:clamp(.7rem,1.7vw,.95rem)/1.6 var(--mono);overflow-x:auto;white-space:pre}
+.term-body div{animation:pop .3s ease both}
+.term-body .p{color:var(--accent)} .term-body .c{color:#FFFFFF;font-weight:600} .term-body .o{color:#9FD9C4}
+.cursor{display:inline-block;width:.6em;height:1.1em;background:#9FD9C4;vertical-align:-2px;animation:blink 1s steps(1) infinite}
+@media (max-width:620px){
+  .stage{aspect-ratio:auto;grid-template-columns:1fr}
+  .avatar{height:190px;padding-top:6px}.avatar svg{height:180px;width:auto}
+  .board{padding:4px 16px 18px}
+}
+
+/* Caption + controls */
+.caption{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;min-height:76px;
+  font:700 clamp(1.05rem,2.3vw,1.3rem)/1.4 var(--body);display:flex;align-items:center;gap:12px}
+.caption .who{font:700 .75rem/1 var(--display);color:var(--rose);text-transform:uppercase;letter-spacing:.08em;flex:none}
+.segs{display:flex;gap:4px}
+.segs button{flex:1;height:8px;border:0;border-radius:4px;background:var(--line);cursor:pointer;padding:0}
+.segs button.on{background:var(--accent)}.segs button.now{background:var(--rose)}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{font:700 .95rem var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;
+  padding:9px 16px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--accent)}
+.btn.play{background:var(--rose);border-color:var(--rose);color:#fff;padding:10px 22px;font-size:1.05rem}
+.btn:focus-visible,select:focus-visible,.segs button:focus-visible,.lesson:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.opts{display:flex;flex-wrap:wrap;gap:10px;margin-left:auto;align-items:center}
+.opts label{font-size:.82rem;color:var(--muted);display:flex;gap:6px;align-items:center}
+select{font:600 .85rem var(--body);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 8px;max-width:210px}
+.note{font-size:.85rem;color:var(--muted);margin:0}
+details{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px}
+summary{cursor:pointer;font-weight:700}
+.script{white-space:pre-wrap;font:.9rem/1.6 var(--body);max-height:260px;overflow:auto;margin:10px 0;padding:10px;background:var(--bg);border-radius:8px;user-select:all}
+
+/* Lesson register */
+aside{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;display:grid;gap:6px}
+aside h2{font:700 1.15rem/1.2 var(--display);margin:2px 6px 6px;display:flex;justify-content:space-between}
+aside h2 small{font:600 .8rem var(--body);color:var(--muted)}
+.lesson{display:grid;grid-template-columns:30px 1fr auto;gap:10px;align-items:center;text-align:left;width:100%;
+  border:0;background:transparent;color:var(--ink);padding:8px;border-radius:10px;cursor:pointer;font:inherit}
+.lesson:hover{background:var(--bg)}
+.lesson.cur{background:color-mix(in srgb,var(--accent) 18%,transparent)}
+.lesson .n{font:700 .95rem var(--display);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--bg);color:var(--muted)}
+.lesson.done .n{background:var(--done);color:#fff}
+.lesson .t{font-weight:700;font-size:.92rem;line-height:1.25}
+.lesson .k{display:block;font:.72rem var(--mono);color:var(--muted);margin-top:2px}
+.lesson .d{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* Nav, practice lab, quiz, cheat sheet */
+.nav{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+.tab.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.lab{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:12px}
+#paneP{display:grid;gap:10px}
+.tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.labinfo{margin-left:auto;color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
+.task{font-weight:700;font-size:1.05rem;line-height:1.35}
+.task small{display:block;color:var(--muted);font-weight:600;font-size:.82rem;margin-top:2px}
+.pterm .term-body{min-height:110px;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word;color:var(--stage-ink)}
+.term-body .ok{color:#7EE2A8;font-weight:600}.term-body .bad{color:#FF9DAE;font-weight:600}.term-body .msg{color:#FFE3B0}
+.pform{display:flex;gap:8px;align-items:center;padding:10px 14px;font:clamp(.8rem,1.8vw,.95rem) var(--mono);background:var(--term);border-top:1px solid rgba(255,255,255,.08)}
+.pform .p{color:var(--accent);flex:none}
+.pform input{flex:1;min-width:0;background:transparent;border:0;color:#FFFFFF;font:inherit;outline:none;caret-color:var(--accent)}
+.pform input::placeholder{color:rgba(255,255,255,.35)}
+.pform:focus-within{box-shadow:inset 0 0 0 2px var(--accent)}
+.qn{font:600 .75rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.qq{font:700 1.2rem/1.3 var(--display);margin:4px 0 12px}
+.qopts{display:grid;gap:8px}
+.qopt{text-align:left;width:100%;border-radius:12px;justify-content:flex-start}
+.qopt.right{border-color:var(--done);background:color-mix(in srgb,var(--done) 16%,var(--surface))}
+.qopt.wrong{border-color:var(--rose);background:color-mix(in srgb,var(--rose) 14%,var(--surface))}
+.qopt:disabled{cursor:default;color:var(--ink)}
+.qfb{min-height:1.6em;font-weight:700;margin:10px 0}
+.qres{font:800 2.4rem/1 var(--display);color:var(--accent)}
+.grp{font:700 .8rem var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--rose);margin:12px 8px 2px;padding-top:10px;border-top:1px solid var(--line)}
+#cheat{display:grid;gap:14px}
+.cheat-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.cheat-head h2{margin:0;font:800 1.6rem var(--display)}
+.cheat-head input{font:600 1rem var(--body);padding:10px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:min(100%,360px)}
+.cheat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px;align-items:start}
+.ccard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.ccard h3{margin:0 0 8px;font:700 1rem/1.3 var(--display);display:flex;gap:8px;align-items:baseline}
+.ccard h3 span{font:600 .75rem var(--mono);color:var(--muted)}
+.ccard table{width:100%;border-collapse:collapse;font-size:.88rem}
+.ccard td{padding:5px 0;border-top:1px solid var(--line);vertical-align:top}
+.ccard td:first-child{padding-right:10px;width:55%}
+.ccard code{font:600 .82rem var(--mono);color:var(--rose);word-break:break-word}
+
+.yaml .ybody{padding:10px 14px;display:grid;gap:3px;font:clamp(.66rem,1.55vw,.9rem)/1.45 var(--mono);overflow-x:auto}
+.yl{display:grid;grid-template-columns:minmax(0,max-content) auto;gap:4px 14px;align-items:baseline;animation:pop .35s ease both}
+.yl code,.term-body,.pj-code pre{font-variant-ligatures:none}
+.yl code{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0;font:inherit;color:#FFFFFF}
+.yl span{font:600 clamp(.66rem,1.45vw,.84rem)/1.3 var(--body);color:#FFE3B0;white-space:nowrap}
+.yl span::before{content:"← ";color:var(--accent)}
+.yk{color:#9FD9C4;font-weight:600}.yv{color:#FFFFFF;font-weight:400}.yd{color:var(--accent)}
+@media (max-width:620px){.yl{grid-template-columns:1fr;gap:0}.yl span{padding-left:12px;white-space:normal}}
+.short{border-color:var(--accent)}
+#proj{display:grid;gap:14px}
+.pj-intro{margin:0;color:var(--muted);max-width:75ch}
+.pj-bar{height:10px;background:var(--line);border-radius:5px;overflow:hidden}.pj-bar i{display:block;height:100%;width:0;background:var(--done);transition:width .3s}
+.pj-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.pj{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
+.pj.done{border-color:var(--done)}
+.pj label{display:flex;gap:10px;align-items:center;font:700 1.08rem/1.3 var(--display);cursor:pointer}
+.pj input{width:20px;height:20px;accent-color:var(--done);flex:none}
+.pj.done label span{text-decoration:line-through;text-decoration-color:var(--done)}
+.pj p{margin:6px 0 10px 30px;color:var(--muted)}
+.pj-code{position:relative;background:var(--term);border-radius:10px;min-width:0}
+.pj-code pre{margin:0;padding:12px 14px;overflow-x:auto;font:.82rem/1.5 var(--mono);color:#E6F4EF}
+.pj-copy{position:absolute;top:6px;right:6px;padding:4px 10px;font-size:.78rem}
+@media (max-width:620px){.pj p{margin-left:0}}
+#mock{display:grid;gap:14px}
+.mk-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px 18px;display:grid;gap:4px}
+.mk-timer{font:700 1.1rem var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}.mk-timer.over{color:var(--rose)}
+.mk-ans{margin:10px 0;padding-left:20px;display:grid;gap:6px}.mk-ans li::marker{color:var(--done)}
+.mk-ok{border-color:var(--done)}
+/* Avatar animation */
+.lid{transform:scaleY(0);transform-box:fill-box;transform-origin:center top;animation:wink 4.5s infinite}
+.m-open{display:none}
+.talking .m-open{display:inline;animation:talk .22s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}
+.talking .m-shut{display:none}
+.lipsync .m-open{display:inline;animation:none;transform-box:fill-box;transform-origin:center}
+.lipsync .m-shut{display:none}
+.lipsync.quiet .m-open{display:none}.lipsync.quiet .m-shut{display:inline}
+.head{transform-box:view-box;transform-origin:110px 176px;animation:tilt 7s ease-in-out infinite}
+.arm{transform-box:view-box;transform-origin:154px 206px}
+.talking .arm,.lipsync .arm{animation:gesture 2.8s ease-in-out infinite}
+.jh{transform-box:fill-box;transform-origin:center top;animation:sway 2.6s ease-in-out infinite}
+.talking .brows,.lipsync .brows{animation:brow 3.4s ease-in-out infinite}
+@keyframes tilt{0%,100%{transform:rotate(0)}30%{transform:rotate(-2deg)}70%{transform:rotate(1.5deg)}}
+@keyframes gesture{0%,100%{transform:rotate(0)}25%{transform:rotate(-9deg)}50%{transform:rotate(3deg)}75%{transform:rotate(-5deg)}}
+@keyframes sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes brow{0%,55%,100%{transform:translateY(0)}65%,85%{transform:translateY(-2.5px)}}
+@keyframes wink{0%,92%,100%{transform:scaleY(0)}95%{transform:scaleY(1)}}
+@keyframes talk{from{transform:scaleY(.35)}to{transform:scaleY(1)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important}
+  .talking .m-open{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Malli Akka <span>Monitoring + Observability Class</span></h1>
+    <p class="tag">Prometheus · Grafana · Alertmanager · Loki · OpenTelemetry · 18 lessons + 6 interview prep · ovvonnum ~1.5 nimisham · <a href="https://kubernets.vercel.app/">☸ Kubernetes</a> · <a href="https://terraform-ansible-course.vercel.app/">🏗 Terraform</a> · <a href="https://cicd-jenkins-course.vercel.app/">🚀 CI/CD</a></p>
+    <nav class="nav" aria-label="Views">
+      <button class="btn tab on" id="navClass" type="button">📺 Class</button>
+      <button class="btn tab" id="navCheat" type="button">📄 Cheat sheet</button>
+      <button class="btn tab" id="navProj" type="button">🛠 Project guide</button>
+      <button class="btn tab" id="navMock" type="button">🎤 Mock interview</button>
+    </nav>
+  </header>
+
+  <section id="proj" hidden>
+    <div class="cheat-head"><h2 id="pjTitle"></h2><span class="note" id="pjCount"></span></div>
+    <p class="pj-intro" id="pjIntro"></p>
+    <div class="pj-bar"><i id="pjBar"></i></div>
+    <ol id="pjSteps" class="pj-steps"></ol>
+  </section>
+
+  <section id="mock" hidden>
+    <div class="cheat-head"><h2>Mock interview</h2>
+      <label class="note" for="mkLvl">Level <select id="mkLvl"><option value="">Ellaam</option><option>Junior</option><option>Mid</option><option>Senior</option></select></label></div>
+    <p class="pj-intro">Malli Akka kelvi kekkum. Sathama, interview la pesura maathiri answer sollu (60 sec). Apram model answer paathu, neeye honest ah mark podu.</p>
+    <div class="pj-bar"><i id="mkBar"></i></div>
+    <div class="mk-card" id="mkCard"></div>
+  </section>
+
+  <section id="cheat" hidden>
+    <div class="cheat-head">
+      <h2>Cheat sheet</h2>
+      <input id="cq" type="search" placeholder="Thedu... (eg: rate, histogram, amtool, LogQL)" aria-label="Search commands">
+    </div>
+    <div id="cheatBody" class="cheat-grid"></div>
+  </section>
+
+  <div class="main" id="classView">
+    <section class="player">
+      <div class="stage" id="stage">
+        <div class="avatar">
+          <svg id="girl" viewBox="0 0 220 260" role="img" aria-label="Malli Akka, the teacher">
+            <defs>
+              <radialGradient id="gSkin" cx="50%" cy="40%" r="62%"><stop offset="0" stop-color="#E9B282"/><stop offset=".72" stop-color="#D49563"/><stop offset="1" stop-color="#BE7F4E"/></radialGradient>
+              <linearGradient id="gHair" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B2319"/><stop offset="1" stop-color="#130A07"/></linearGradient>
+              <linearGradient id="gSaree" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EA6380"/><stop offset="1" stop-color="#B53855"/></linearGradient>
+              <radialGradient id="gIris" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#8A5530"/><stop offset="1" stop-color="#2A160C"/></radialGradient>
+            </defs>
+            <g class="head">
+              <path d="M46 102 C38 28 182 28 174 102 C178 140 180 172 172 196 C150 206 70 206 48 196 C40 172 42 140 46 102 Z" fill="url(#gHair)"/>
+            </g>
+            <g fill="url(#gHair)"><ellipse cx="166" cy="206" rx="11" ry="13"/><ellipse cx="169" cy="228" rx="10" ry="12"/><ellipse cx="167" cy="249" rx="9" ry="11"/></g>
+            <g stroke="#5A382B" stroke-width="1.4" fill="none" opacity=".7"><path d="M159 200 Q166 210 174 204"/><path d="M162 222 Q169 232 177 226"/><path d="M161 243 Q167 252 174 247"/></g>
+            <path d="M38 262 C42 214 72 190 110 188 C148 190 178 214 182 262 Z" fill="#8E2050"/>
+            <path d="M60 199 C82 191 100 195 113 206 L178 262 L116 262 C102 236 82 213 60 199 Z" fill="url(#gSaree)"/>
+            <path d="M60 199 C82 191 100 195 113 206 L178 262" fill="none" stroke="#F2B33D" stroke-width="5"/>
+            <g fill="#F7D27A"><circle cx="128" cy="226" r="2"/><circle cx="143" cy="238" r="2"/><circle cx="157" cy="250" r="2"/><circle cx="96" cy="222" r="2"/><circle cx="108" cy="238" r="2"/><circle cx="122" cy="250" r="2"/></g>
+            <path d="M97 146 L97 186 Q110 194 123 186 L123 146 Z" fill="#C98A55"/>
+            <path d="M97 152 Q110 170 123 152 L123 146 L97 146 Z" fill="#AD6E40" opacity=".55"/>
+            <path d="M92 189 Q110 212 128 189" fill="none" stroke="#F2B33D" stroke-width="2.6"/>
+            <circle cx="110" cy="204" r="4.2" fill="#F2B33D"/><circle cx="110" cy="204" r="1.9" fill="#D94C68"/>
+            <g class="arm">
+              <path d="M148 198 C166 194 182 206 188 224 L176 232 C170 218 160 212 148 214 Z" fill="#8E2050"/>
+              <path d="M150 199 C166 196 180 206 186 220" fill="none" stroke="#F2B33D" stroke-width="2.2"/>
+              <path d="M181 226 L198 186" stroke="#D49563" stroke-width="13" stroke-linecap="round"/>
+              <ellipse cx="189" cy="208" rx="7.6" ry="2.8" transform="rotate(-67 189 208)" fill="none" stroke="#F2B33D" stroke-width="2.4"/>
+              <ellipse cx="191.3" cy="202.5" rx="7.6" ry="2.8" transform="rotate(-67 191.3 202.5)" fill="none" stroke="#D94C68" stroke-width="2.4"/>
+              <ellipse cx="200" cy="177" rx="8" ry="9.5" fill="#DA9C6C"/>
+              <path d="M202.5 170 L206.5 154" stroke="#DA9C6C" stroke-width="5.6" stroke-linecap="round"/>
+              <path d="M194 172 Q192 180 196 184" stroke="#AD6E40" stroke-width="1.4" fill="none"/>
+            </g>
+            <g class="head">
+              <ellipse cx="62" cy="116" rx="7" ry="10" fill="#C98A55"/><ellipse cx="158" cy="116" rx="7" ry="10" fill="#C98A55"/>
+              <path d="M62 106 C62 70 84 56 110 56 C136 56 158 70 158 106 C158 140 138 166 110 166 C82 166 62 140 62 106 Z" fill="url(#gSkin)"/>
+              <path d="M58 104 C54 44 166 44 162 104 C156 84 146 70 128 64 C120 61 114 62 110 67 C106 62 100 61 92 64 C74 70 64 84 58 104 Z" fill="url(#gHair)"/>
+              <path d="M59 98 C54 120 57 140 64 152 C63 130 65 112 72 96 Z" fill="url(#gHair)"/>
+              <path d="M161 98 C166 120 163 140 156 152 C157 130 155 112 148 96 Z" fill="url(#gHair)"/>
+              <path d="M76 72 Q92 58 106 63" stroke="#6E4838" stroke-width="2" fill="none" opacity=".55" stroke-linecap="round"/>
+              <path d="M116 63 Q132 59 147 73" stroke="#6E4838" stroke-width="2" fill="none" opacity=".55" stroke-linecap="round"/>
+              <g class="jh"><circle cx="61" cy="129" r="3.2" fill="#F2B33D"/><path d="M54 142 Q61 128 68 142 Z" fill="#F2B33D"/><g fill="#FFF6E0"><circle cx="56" cy="145" r="1.6"/><circle cx="61" cy="146.5" r="1.6"/><circle cx="66" cy="145" r="1.6"/></g></g>
+              <g class="jh"><circle cx="159" cy="129" r="3.2" fill="#F2B33D"/><path d="M152 142 Q159 128 166 142 Z" fill="#F2B33D"/><g fill="#FFF6E0"><circle cx="154" cy="145" r="1.6"/><circle cx="159" cy="146.5" r="1.6"/><circle cx="164" cy="145" r="1.6"/></g></g>
+              <g fill="#FFFFFF" stroke="#E6DDC6" stroke-width=".8">
+                <ellipse cx="148" cy="52" rx="3.2" ry="5" transform="rotate(50 148 52)"/><ellipse cx="156" cy="58" rx="3.2" ry="5" transform="rotate(40 156 58)"/>
+                <ellipse cx="163" cy="66" rx="3.2" ry="5" transform="rotate(30 163 66)"/><ellipse cx="168" cy="76" rx="3.2" ry="5" transform="rotate(18 168 76)"/>
+                <ellipse cx="171" cy="87" rx="3.2" ry="5" transform="rotate(8 171 87)"/><ellipse cx="172.5" cy="98" rx="3.2" ry="5"/>
+              </g>
+              <g fill="#4E8A3E"><ellipse cx="152" cy="50" rx="1.6" ry="3.4" transform="rotate(-30 152 50)"/><ellipse cx="175.5" cy="92" rx="1.6" ry="3.4" transform="rotate(20 175.5 92)"/></g>
+              <g class="brows">
+                <path d="M76 96 Q88 86.5 102 92.5" stroke="#1E110C" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+                <path d="M118 92.5 Q132 86.5 144 96" stroke="#1E110C" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+              </g>
+              <path d="M76 111 Q90 97 104 111 Q90 121.5 76 111 Z" fill="#FFFFFF"/>
+              <path d="M116 111 Q130 97 144 111 Q130 121.5 116 111 Z" fill="#FFFFFF"/>
+              <circle cx="90" cy="110.5" r="7.2" fill="url(#gIris)"/><circle cx="130" cy="110.5" r="7.2" fill="url(#gIris)"/>
+              <circle cx="90" cy="110.5" r="3" fill="#0D0806"/><circle cx="130" cy="110.5" r="3" fill="#0D0806"/>
+              <circle cx="92.6" cy="107.6" r="2.2" fill="#FFFFFF"/><circle cx="132.6" cy="107.6" r="2.2" fill="#FFFFFF"/>
+              <circle cx="88" cy="113" r="1" fill="#FFFFFF"/><circle cx="128" cy="113" r="1" fill="#FFFFFF"/>
+              <path class="lid" d="M74 111 Q90 94 106 111 Q90 123 74 111 Z" fill="#D49563"/>
+              <path class="lid" d="M114 111 Q130 94 146 111 Q130 123 114 111 Z" fill="#D49563"/>
+              <path d="M104 110.5 Q90 96.5 76 111 L71 106" stroke="#120A08" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M116 110.5 Q130 96.5 144 111 L149 106" stroke="#120A08" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M79 113.5 Q90 119.5 101 113.5" stroke="#5A3A2A" stroke-width="1" fill="none"/>
+              <path d="M119 113.5 Q130 119.5 141 113.5" stroke="#5A3A2A" stroke-width="1" fill="none"/>
+              <circle cx="110" cy="88" r="3.2" fill="#B3164E"/><circle cx="110" cy="88" r="1" fill="#FFF6E0"/>
+              <path d="M107.5 123 Q106 129 104.5 131.5 Q110 134.5 115.5 131.5" stroke="#A8693D" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+              <circle cx="103.5" cy="131" r="1.9" fill="#FFF6E0" stroke="#F2B33D" stroke-width=".9"/>
+              <ellipse cx="80" cy="130" rx="9" ry="6" fill="#F28B9B" opacity=".4"/><ellipse cx="140" cy="130" rx="9" ry="6" fill="#F28B9B" opacity=".4"/>
+              <g class="m-shut"><path d="M97 145 Q110 141 123 145 Q110 156 97 145 Z" fill="#C2455E"/><path d="M97 145 Q110 149.5 123 145" stroke="#8A2D3B" stroke-width="1.4" fill="none"/></g>
+              <g class="m-open">
+                <path d="M97 144 Q110 140 123 144 Q121 159 110 161 Q99 159 97 144 Z" fill="#6B1A2A" stroke="#C2455E" stroke-width="2.2"/>
+                <path d="M100 145 Q110 142.5 120 145 L119 148.5 Q110 147 101 148.5 Z" fill="#FFFFFF"/>
+                <ellipse cx="110" cy="156" rx="6" ry="3" fill="#E46A7A"/>
+              </g>
+            </g>
+          </svg>
+          <div class="nametag">Malli Akka</div>
+        </div>
+        <div class="board">
+          <div class="lesson-chip" id="chip">Lesson 1</div>
+          <div id="view"></div>
+        </div>
+      </div>
+
+      <div class="segs" id="segs" aria-label="Scenes"></div>
+      <div class="caption" aria-live="polite"><span class="who">Malli</span><span id="cap">Play button amukku kutty, class start aagum!</span></div>
+
+      <div class="controls">
+        <button class="btn" id="prev" aria-label="Previous scene">⏮</button>
+        <button class="btn play" id="play">▶ Play</button>
+        <button class="btn" id="next" aria-label="Next scene">⏭</button>
+        <div class="opts">
+          <label for="voice">Voice <select id="voice"></select></label>
+          <label for="rate">Speed
+            <select id="rate"><option value="0.8">0.8×</option><option value="0.95" selected>1×</option><option value="1.1">1.15×</option><option value="1.25">1.3×</option></select>
+          </label>
+          <button class="btn" id="mute">🔊 Sound on</button>
+        </div>
+      </div>
+      <p class="note" id="vnote">Malli Akka voice: Fish Audio la create panna natural Tamil voice. Headphones potta innum nalla irukkum.</p>
+
+      <section class="lab" id="lab">
+        <div class="tabs" role="tablist">
+          <button class="btn tab on" id="tabP" type="button" role="tab" aria-selected="true">🖥️ Practice</button>
+          <button class="btn tab" id="tabQ" type="button" role="tab" aria-selected="false">📝 Quiz</button>
+          <span class="labinfo" id="labInfo"></span>
+        </div>
+        <div id="paneP" role="tabpanel">
+          <div class="task" id="task"></div>
+          <div class="term pterm">
+            <div class="term-bar"><i></i><i></i><i></i><span>practice terminal (commands + PromQL / LogQL)</span></div>
+            <div class="term-body pout" id="pout" aria-live="polite"></div>
+            <form class="pform" id="pform">
+              <label for="pin" class="p">kutty@obs:~$</label>
+              <input id="pin" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="command type panni Enter amukku">
+            </form>
+          </div>
+          <div class="controls">
+            <button class="btn" id="hint" type="button">💡 Hint</button>
+            <button class="btn" id="skip" type="button">Skip ⏭</button>
+            <button class="btn" id="preset" type="button">↺ Restart</button>
+          </div>
+        </div>
+        <div id="paneQ" role="tabpanel" hidden></div>
+      </section>
+
+      <details>
+        <summary>Video script (HeyGen / D-ID la real avatar video panna copy pannu)</summary>
+        <div class="script" id="script"></div>
+        <button class="btn" id="copy">Copy script</button> <span class="note" id="copied"></span>
+      </details>
+    </section>
+
+    <aside>
+      <h2>Lessons <small id="count"></small></h2>
+      <div id="list"></div>
+    </aside>
+  </div>
+</div>
+
+<script src="durations.js"></script>
+<script src="lessons.js"></script>
+<script>window.ADV=()=>({lessons:[],practice:[],quiz:[]});</script>
+<script src="project.js"></script>
+<script>window.LVL=()=>({lessons:[],practice:[],quiz:[]});</script>
+<script src="mock.js"></script>
+<script src="extras.js"></script>
+<script>
+const B=(a,b)=>({k:"big",a,b}), T=(...l)=>({k:"term",l}), Li=(a,...r)=>({k:"list",a,r}), Y=(f,...r)=>({k:"yaml",f,r});
+const A=window.ADV({B,T,Li,Y});
+const LESSONS=[...window.CORE({B,T,Li,Y}),...A.lessons];
+const NCORE=LESSONS.length-A.lessons.length;
+
+const X=window.EXTRAS?window.EXTRAS({B,T,Li,Y}):{interview:[],practice:[],quiz:[]};
+X.practice.splice(NCORE,0,...A.practice); X.quiz.splice(NCORE,0,...A.quiz);
+LESSONS.push(...X.interview);
+const LV=window.LVL({B,T,Li,Y}); LESSONS.push(...LV.lessons); X.practice.push(...LV.practice); X.quiz.push(...LV.quiz);
+
+const $=id=>document.getElementById(id);
+const synth=window.speechSynthesis||null;
+let L=0,S=0,playing=false,token=0,soundOn=true,natural=true,voice=null,voices=[];
+const audio=new Audio(); audio.preload="auto";
+let actx=null,analyser=null,abuf=null,raf=0;
+const store={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+if(store.get("obs-v",1)<2){const sh=i=>+i>=NCORE?+i+A.lessons.length:+i, shk=o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[sh(k),v]));
+  store.set("obs-done",store.get("obs-done",[]).map(sh)); store.set("obs-prac",shk(store.get("obs-prac",{}))); store.set("obs-quiz",shk(store.get("obs-quiz",{})));
+  const p=store.get("obs-pos",[0,0]); store.set("obs-pos",[sh(p[0]),p[1]]); store.set("obs-v",2)}
+let done=store.get("obs-done",[]);
+let pracDone=store.get("obs-prac",{}), quizBest=store.get("obs-quiz",{});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mins=l=>{const d=(window.DUR||[])[LESSONS.indexOf(l)]; if(d) return `${Math.floor(d/60)}:${String(d%60).padStart(2,"0")}`; return "~"+Math.max(1,Math.round(l.s.reduce((n,x)=>n+x[0].split(/\s+/).length,0)/70))+"m"};
+
+function renderList(){
+  $("list").innerHTML=LESSONS.map((l,i)=>(l.g?`<div class="grp">${esc(l.g)}</div>`:"")+`<button class="lesson${i===L?" cur":""}${done.includes(i)?" done":""}" data-i="${i}" type="button">
+    <span class="n">${done.includes(i)?"✓":i+1}</span><span><span class="t">${esc(l.t)}</span><span class="k">${esc(l.k)}</span></span><span class="d">${mins(l)}${quizBest[i]!=null?`<br>★ ${quizBest[i]}/5`:""}</span></button>`).join("");
+  $("count").textContent=done.length+" / "+LESSONS.length+" mudinjuthu";
+}
+// YAML syntax colouring: key, value, list dash
+const yhl=s=>{const h=s.match(/^(\s*)([\w.\/-]+\s*=)(?!=)(.*)$/);if(h)return esc(h[1])+`<b class="yk">${esc(h[2])}</b><b class="yv">${esc(h[3])}</b>`;const m=s.match(/^(\s*)(- )?([\w.\/-]+:)?(.*)$/);if(!m)return esc(s);
+  return esc(m[1])+(m[2]?`<b class="yd">- </b>`:"")+(m[3]?`<b class="yk">${esc(m[3])}</b>`:"")+`<b class="yv">${esc(m[4])}</b>`};
+function renderBoard(v){
+  if(v.k==="big") return `<div class="bview"><div class="b-a">${esc(v.a)}</div><div class="b-b">${esc(v.b)}</div></div>`;
+  if(v.k==="list") return `<div class="bview b-list"><h3>${esc(v.a)}</h3><ul>${v.r.map((r,i)=>`<li style="animation-delay:${i*.25}s"><code>${esc(r[0])}</code><span>${esc(r[1])}</span></li>`).join("")}</ul></div>`;
+  if(v.k==="yaml") return `<div class="bview term yaml"><div class="term-bar"><i></i><i></i><i></i><span>${esc(v.f)}</span></div><div class="ybody">${v.r.map((r,i)=>`<div class="yl" style="animation-delay:${i*.35}s"><code>${yhl(r[0])}</code>${r[1]?`<span>${esc(r[1])}</span>`:""}</div>`).join("")}</div></div>`;
+  let d=0,h="";
+  v.l.forEach(([c,o])=>{
+    h+=`<div style="animation-delay:${d}s"><span class="p">kutty@obs:~$ </span><span class="c">${esc(c)}</span>${c?"":'<span class="cursor"></span>'}</div>`;d+=.5;
+    if(o) o.split("\n").forEach(line=>{h+=`<div class="o" style="animation-delay:${d}s">${esc(line)}</div>`;d+=.2});
+  });
+  return `<div class="bview term"><div class="term-bar"><i></i><i></i><i></i><span>kutty@obs — terminal</span></div><div class="term-body">${h}</div></div>`;
+}
+function renderScene(){
+  const l=LESSONS[L],sc=l.s[S];
+  $("chip").textContent=`Lesson ${L+1} · ${l.t}`;
+  $("view").innerHTML=renderBoard(sc[1]);
+  $("segs").innerHTML=l.s.map((_,i)=>`<button class="${i<S?"on":i===S?"now":""}" data-s="${i}" aria-label="Scene ${i+1}"></button>`).join("");
+  $("script").textContent=l.t+"\n\n"+l.s.map((x,i)=>`Scene ${i+1}: ${x[0]}`).join("\n\n");
+}
+const talk=on=>$("girl").classList.toggle("talking",on);
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+function speak(text){
+  return new Promise(res=>{
+    const rate=+$("rate").value, words=text.split(/\s+/).length;
+    let fin=false; const end=()=>{if(!fin){fin=true;talk(false);res()}};
+    if(!soundOn||!synth){talk(true);setTimeout(end,Math.max(1500,words*390/rate));return}
+    const u=new SpeechSynthesisUtterance(text);
+    if(voice){u.voice=voice;u.lang=voice.lang}else u.lang="en-IN";
+    u.rate=rate;u.pitch=1.15;u.onstart=()=>talk(true);u.onend=end;u.onerror=end;
+    synth.speak(u); talk(true);
+    setTimeout(end,words*900/rate+4000);
+  });
+}
+// Lip sync from the audio level. Only over http(s): a file:// page gets silent data from the analyser.
+function setupLip(){
+  if(actx||!/^https?:/.test(location.protocol)) return;
+  try{
+    actx=new (window.AudioContext||window.webkitAudioContext)();
+    const src=actx.createMediaElementSource(audio);
+    analyser=actx.createAnalyser(); analyser.fftSize=512;
+    src.connect(analyser); analyser.connect(actx.destination);
+    abuf=new Uint8Array(analyser.fftSize);
+  }catch(e){actx=null;analyser=null}
+}
+const girl=()=>$("girl"), mouth=()=>girl().querySelector(".m-open");
+function lipStart(){
+  if(!analyser){talk(true);return}
+  girl().classList.add("lipsync");
+  const tick=()=>{
+    analyser.getByteTimeDomainData(abuf);
+    let sum=0; for(const v of abuf){const d=(v-128)/128; sum+=d*d}
+    const open=Math.min(1,Math.sqrt(sum/abuf.length)*7);
+    girl().classList.toggle("quiet",open<.08);
+    mouth().style.transform=`scaleY(${(.3+open*.8).toFixed(2)})`;
+    raf=requestAnimationFrame(tick);
+  };
+  tick();
+}
+function lipStop(){cancelAnimationFrame(raf);girl().classList.remove("lipsync","quiet");mouth().style.transform="";talk(false)}
+function playAudio(my,parts){
+  return new Promise(res=>{
+    const w=parts.map(p=>p.length), tot=w.reduce((a,b)=>a+b,0); let last=-1;
+    audio.src=`audio/${L+1}-${S+1}.mp3`;
+    audio.playbackRate=+$("rate").value/0.95;
+    audio.ontimeupdate=()=>{
+      if(my!==token||!audio.duration) return;
+      const f=audio.currentTime/audio.duration; let acc=0,i=0;
+      for(;i<w.length-1;i++){acc+=w[i]/tot; if(f<acc) break}
+      if(i!==last){last=i;$("cap").textContent=parts[i]}
+    };
+    audio.onended=()=>{lipStop();res(true)};
+    audio.onerror=()=>{lipStop();res(false)};
+    $("cap").textContent=parts[0];
+    if(actx&&actx.state==="suspended") actx.resume();
+    lipStart();
+    audio.play().catch(()=>{lipStop();res(false)});
+    const n=S<LESSONS[L].s.length-1?`audio/${L+1}-${S+2}.mp3`:L<LESSONS.length-1?`audio/${L+2}-1.mp3`:null;
+    if(n) fetch(n).catch(()=>{});
+  });
+}
+async function run(){
+  const my=++token;
+  renderScene();
+  const parts=LESSONS[L].s[S][0].match(/[^.!?]+[.!?]*/g).map(s=>s.trim()).filter(Boolean);
+  let spoken=false;
+  if(natural&&soundOn) spoken=await playAudio(my,parts);
+  if(my!==token) return;
+  if(!spoken) for(const p of parts){ if(my!==token) return; $("cap").textContent=p; await speak(p); }
+  if(my!==token) return; await wait(700); if(my!==token) return;
+  if(S<LESSONS[L].s.length-1){S++;run()}
+  else{ if(!done.includes(L)){done.push(L);store.set("obs-done",done)} renderList();
+    if(L<LESSONS.length-1){$("cap").textContent="Lesson mudinjuthu! Ippo keela Practice & Quiz try pannu kutty 👇";} setPlaying(false); }
+}
+function stop(){token++; if(synth) synth.cancel();
+  audio.onended=audio.onerror=audio.ontimeupdate=null; audio.pause(); lipStop()}
+function setPlaying(p){playing=p;$("play").textContent=p?"⏸ Pause":"▶ Play"}
+function go(l,s,autoplay){stop();const changed=l!==L;L=l;S=s;renderList();renderScene();if(changed)renderLab();$("cap").textContent=LESSONS[L].s[S][0];
+  store.set("obs-pos",[L,S]); if(autoplay){setPlaying(true);run()} else setPlaying(false)}
+
+$("play").onclick=()=>{ setupLip(); if(playing){stop();setPlaying(false)} else { if(S===LESSONS[L].s.length-1 && done.includes(L) && $("cap").textContent.startsWith("Lesson mudinjuthu")) S=0; setPlaying(true); run(); } };
+$("next").onclick=()=>{const n=LESSONS[L].s.length; if(S<n-1) go(L,S+1,playing); else if(L<LESSONS.length-1) go(L+1,0,playing)};
+$("prev").onclick=()=>{ if(S>0) go(L,S-1,playing); else if(L>0) go(L-1,LESSONS[L-1].s.length-1,playing)};
+$("segs").onclick=e=>{const b=e.target.closest("button"); if(b) go(L,+b.dataset.s,playing)};
+$("list").onclick=e=>{const b=e.target.closest(".lesson"); if(b){setupLip();go(+b.dataset.i,0,true); $("stage").scrollIntoView({behavior:"smooth",block:"start"})}};
+$("mute").onclick=()=>{ soundOn=!soundOn; $("mute").textContent=soundOn?"🔊 Sound on":"🔇 Sound off"; if(playing){stop();setPlaying(true);run()} };
+$("rate").onchange=()=>{ if(playing){stop();setPlaying(true);run()} };
+$("voice").onchange=()=>{const v=$("voice").value; natural=v==="kavitha"; voice=natural?null:voices[+v]||null;
+  store.set("obs-voice",natural?"kavitha":voice&&voice.name); if(playing){stop();setPlaying(true);run()}};
+$("copy").onclick=()=>{const t=$("script").textContent;
+  const ok=()=>$("copied").textContent="Copied!";
+  const fallback=()=>{const r=document.createRange();r.selectNodeContents($("script"));const s=getSelection();s.removeAllRanges();s.addRange(r);$("copied").textContent="Select aagiduchu, Ctrl+C pannu"};
+  try{navigator.clipboard.writeText(t).then(ok,fallback)}catch(e){fallback()}};
+
+function loadVoices(){
+  const all=synth?synth.getVoices():[];
+  const score=v=>(/en-IN/i.test(v.lang)?20:0)+(/^en/i.test(v.lang)?5:0)+(/neerja|heera|swara|veena|female|zira|samantha|aria|jenny/i.test(v.name)?8:0)+(/natural|online/i.test(v.name)?4:0);
+  voices=all.filter(v=>/^(en|ta)/i.test(v.lang)).sort((a,b)=>score(b)-score(a));
+  const saved=store.get("obs-voice","kavitha");
+  const idx=voices.findIndex(v=>v.name===saved);
+  $("voice").innerHTML=`<option value="kavitha">Malli Akka (natural Tamil)</option>`+
+    voices.map((v,i)=>`<option value="${i}">Browser: ${esc(v.name.replace(/^Microsoft |Online \(Natural\) - /g,""))} (${v.lang})</option>`).join("");
+  natural=idx<0; voice=natural?null:voices[idx];
+  $("voice").value=natural?"kavitha":String(idx);
+}
+loadVoices();
+if(synth) synth.onvoiceschanged=loadVoices;
+
+const pos=store.get("obs-pos",[0,0]);
+L=Math.min(pos[0]||0,LESSONS.length-1); S=Math.min(pos[1]||0,LESSONS[L].s.length-1);
+// ---------- Practice terminal ----------
+const GOOD=["Super kutty! Correct ah type panna!","Vaav! Nee oru Observability star!","Arumai kutty! Adutha task pannalaam.","Perfect! Naan romba proud kutty!"];
+const RETRY=["Paravaala kutty, innoru thadava try pannu.","Konjam miss aayiduchu. Hint paathu try pannu kutty."];
+const fx=name=>{ if(!soundOn) return; try{ new Audio(`audio/fx-${name}.mp3`).play().catch(()=>{}) }catch(e){} };
+const rnd=n=>1+Math.floor(Math.random()*n);
+let pi=0;
+const PR=()=>X.practice[L]||[];
+function pline(cls,text){const d=document.createElement("div");d.className=cls;d.textContent=text;$("pout").appendChild(d);$("pout").scrollTop=$("pout").scrollHeight}
+function labInfo(){
+  const n=PR().length, b=quizBest[L];
+  $("labInfo").textContent=`Lesson ${L+1} · Practice ${Math.min(pracDone[L]||0,n)}/${n} · Quiz best ${b==null?"–":b}/5`;
+}
+function renderTask(){
+  const ts=PR();
+  if(pi>=ts.length){$("task").innerHTML=`🎉 Practice mudinjuthu! <small>Ippo 📝 Quiz tab try pannu, illa ↺ Restart amukki thirumba pannu.</small>`;return}
+  $("task").innerHTML=`Task ${pi+1} / ${ts.length}: ${esc(ts[pi][0])}<small>Command type panni Enter amukku. Theriyala na 💡 Hint.</small>`;
+}
+function renderLab(){
+  pi=Math.min(pracDone[L]||0,PR().length);
+  $("pout").innerHTML="";
+  pline("msg",`Lesson ${L+1} practice: ${LESSONS[L].t}`);
+  renderTask(); renderQuiz(true); labInfo();
+}
+$("pform").onsubmit=e=>{
+  e.preventDefault();
+  const v=$("pin").value.trim().replace(/\s+/g," ");
+  if(!v) return;
+  $("pin").value="";
+  if(playing){stop();setPlaying(false)}
+  if(v==="clear"&&PR()[pi]?.[1]!=="clear"){$("pout").innerHTML="";return}
+  pline("c","$ "+v);
+  const t=PR()[pi];
+  if(!t){pline("msg","Practice mudinjuthu kutty! ↺ Restart amukki thirumba pannalaam.");return}
+  if(t[2].test(v)){
+    const out=t[3]==="$echo"?v.replace(/^echo /,"").replace(/^["']|["']$/g,""):t[3];
+    if(out) out.split("\n").forEach(x=>pline("o",x));
+    pi++; pracDone[L]=Math.max(pracDone[L]||0,pi); store.set("obs-prac",pracDone);
+    if(pi>=PR().length){pline("ok","🎉 Super kutty! Intha lesson practice mudichitta! Ippo Quiz try pannu.");fx("prac-done")}
+    else{const k=rnd(4);pline("ok","✔ "+GOOD[k-1]);fx("good-"+k)}
+    renderTask(); labInfo();
+  }else{const k=rnd(2);pline("bad","✘ "+RETRY[k-1]);fx("retry-"+k)}
+};
+$("hint").onclick=()=>{const t=PR()[pi]; if(t) pline("msg","💡 Hint: "+t[1]); $("pin").focus()};
+$("skip").onclick=()=>{if(pi<PR().length){pi++;pline("msg","⏭ Skip pannitta. Adutha task.");renderTask()} $("pin").focus()};
+$("preset").onclick=()=>{pi=0;$("pout").innerHTML="";pline("msg","↺ Thirumba start pannalaam!");renderTask();$("pin").focus()};
+
+// ---------- Quiz ----------
+let qi=0,qscore=0,qorder=[],qanswered=false;
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+function renderQuiz(reset){
+  const Q=X.quiz[L]||[];
+  if(reset){qi=0;qscore=0;qorder=Q.map(()=>shuffle([1,2,3]))}
+  qanswered=false;
+  if(!Q.length){$("paneQ").innerHTML=`<p class="note">Intha lesson ku quiz illa.</p>`;return}
+  if(qi>=Q.length){
+    const great=qscore>=4;
+    $("paneQ").innerHTML=`<div class="qn">Quiz result</div><div class="qres">${qscore} / ${Q.length}</div>
+      <p class="qfb">${great?"🏆 Vaav! Quiz la nee kalakkitta kutty!":"💪 Nalla try kutty! Lesson ah innoru thadava paathutu quiz pannu."}</p>
+      <button class="btn play" id="qretry" type="button">↺ Thirumba quiz</button>`;
+    return;
+  }
+  const q=Q[qi];
+  $("paneQ").innerHTML=`<div class="qn">Kelvi ${qi+1} / ${Q.length} · Score ${qscore}</div><h3 class="qq">${esc(q[0])}</h3>
+    <div class="qopts">${qorder[qi].map(k=>`<button class="btn qopt" data-k="${k}" type="button">${esc(q[k])}</button>`).join("")}</div>
+    <div class="qfb" id="qfb"></div><button class="btn play" id="qnext" type="button" hidden>${qi===Q.length-1?"Result paaru 🏁":"Adutha kelvi ➜"}</button>`;
+}
+$("paneQ").onclick=e=>{
+  const Q=X.quiz[L]||[];
+  if(e.target.id==="qretry"){renderQuiz(true);return}
+  if(e.target.id==="qnext"){
+    qi++;
+    if(qi>=Q.length){quizBest[L]=Math.max(quizBest[L]??0,qscore);store.set("obs-quiz",quizBest);fx(qscore>=4?"quiz-great":"quiz-ok");renderList();labInfo()}
+    renderQuiz(false);return;
+  }
+  const b=e.target.closest(".qopt"); if(!b||qanswered) return;
+  qanswered=true;
+  if(playing){stop();setPlaying(false)}
+  const right=b.dataset.k==="1";
+  $("paneQ").querySelectorAll(".qopt").forEach(o=>{o.disabled=true;if(o.dataset.k==="1")o.classList.add("right")});
+  if(right){qscore++;$("qfb").textContent="✔ Correct! "+GOOD[rnd(4)-1];fx("good-"+rnd(4))}
+  else{b.classList.add("wrong");$("qfb").textContent="✘ Thappu kutty. Correct answer green la irukku.";fx("retry-1")}
+  $("qnext").hidden=false;
+};
+function showTab(q){$("paneP").hidden=q;$("paneQ").hidden=!q;$("tabP").classList.toggle("on",!q);$("tabQ").classList.toggle("on",q);
+  $("tabP").setAttribute("aria-selected",String(!q));$("tabQ").setAttribute("aria-selected",String(q))}
+$("tabP").onclick=()=>showTab(false);
+$("tabQ").onclick=()=>showTab(true);
+
+// ---------- Cheat sheet ----------
+const SHORT=[["up == 0", "down targets"], ["rate(x_total[5m])", "counter per-second"], ["increase(x_total[1h])", "count in window"], ["sum by (label) (...)", "group"], ["topk(5, ...)", "top N"], ["histogram_quantile(0.95, sum by (le) (rate(x_bucket[5m])))", "p95"], ["{code=~\"5..\"}", "regex label match"], ["absent(up{job=\"x\"})", "metric missing"], ["predict_linear(x[6h], 4*3600)", "forecast"], ["offset 1d", "compare yesterday"], ["promtool check config / rules", "validate"], ["curl -X POST :9090/-/reload", "reload"], ["amtool silence add alertname=X --duration=2h", "silence"], ["for: 10m", "avoid flapping"], ["group_by / inhibit_rules", "less noise"], ["{job=\"app\"} |= \"error\"", "LogQL filter"], ["| json | status >= 500", "LogQL parse"], ["count_over_time({...} [5m])", "log metric"], ["label_values(metric, label)", "Grafana variable"], ["9090 / 9093 / 3000 / 3100 / 9100", "Prom / AM / Grafana / Loki / node"]];
+function renderCheat(){
+  const q=$("cq").value.trim().toLowerCase();
+  const html=LESSONS.map((l,i)=>{
+    const rows=(X.practice[i]||[]).filter(t=>!q||`${t[1]} ${t[4]} ${l.t}`.toLowerCase().includes(q));
+    if(!rows.length) return "";
+    return `<div class="ccard"><h3><span>${i+1}</span>${esc(l.t)}</h3><table>${rows.map(t=>`<tr><td><code>${esc(t[1])}</code></td><td>${esc(t[4])}</td></tr>`).join("")}</table></div>`;
+  }).join("");
+  const sf=SHORT.filter(t=>!q||`${t[0]} ${t[1]}`.toLowerCase().includes(q));
+  const top=sf.length?`<div class="ccard short"><h3><span>★</span>PromQL + LogQL quick reference</h3><table>${sf.map(t=>`<tr><td><code>${esc(t[0])}</code></td><td>${esc(t[1])}</td></tr>`).join("")}</table></div>`:"";
+  $("cheatBody").innerHTML=(top+html)||`<p class="note">"${esc(q)}" ku edhuvum kidaikkala kutty.</p>`;
+}
+$("cq").oninput=renderCheat;
+// ---------- Project guide ----------
+let pjDone=store.get("obs-proj",[]);
+function renderProj(){
+  const P=window.PROJECT; if(!P) return;
+  $("pjTitle").textContent=P.title; $("pjIntro").textContent=P.intro;
+  $("pjSteps").innerHTML=P.steps.map((st,i)=>`<li class="pj${pjDone.includes(i)?" done":""}"><label><input type="checkbox" data-i="${i}"${pjDone.includes(i)?" checked":""}><span>${esc(st.t)}</span></label>
+    <p>${esc(st.d)}</p><div class="pj-code"><button class="btn pj-copy" type="button" data-i="${i}">Copy</button><pre>${esc(st.c)}</pre></div></li>`).join("");
+  pjCount();
+}
+function pjCount(){const n=window.PROJECT.steps.length;$("pjCount").textContent=`${pjDone.length} / ${n} steps mudinjuthu`;$("pjBar").style.width=(pjDone.length/n*100)+"%"}
+$("pjSteps").onchange=e=>{const i=+e.target.dataset.i; pjDone=e.target.checked?[...new Set([...pjDone,i])]:pjDone.filter(x=>x!==i);
+  store.set("obs-proj",pjDone); e.target.closest("li").classList.toggle("done",e.target.checked); pjCount()};
+$("pjSteps").onclick=e=>{const b=e.target.closest(".pj-copy"); if(!b) return; const t=window.PROJECT.steps[+b.dataset.i].c;
+  const ok=()=>{b.textContent="Copied!";setTimeout(()=>b.textContent="Copy",1500)};
+  try{navigator.clipboard.writeText(t).then(ok,()=>{b.textContent="Select panni copy pannu"})}catch(e){b.textContent="Select panni copy pannu"}};
+
+// ---------- Mock interview ----------
+let mkRes=store.get("obs-mock",{}), mkOrder=[], mkI=0, mkTimer=0, mkLeft=0;
+const mkAudio=new Audio();
+const mkList=()=>window.MOCK.map((m,i)=>i).filter(i=>!$("mkLvl").value||window.MOCK[i].l===$("mkLvl").value||window.MOCK[i].l==="All");
+function mkStart(){mkOrder=shuffle(mkList());mkI=0;mkRender()}
+function mkStats(){const L=mkList(),ok=L.filter(i=>mkRes[i]===1).length;$("mkBar").style.width=(L.length?ok/L.length*100:0)+"%";return [ok,L.length]}
+function mkStopAudio(){clearInterval(mkTimer);mkAudio.pause();mkAudio.onended=mkAudio.onerror=null;if(synth)synth.cancel();girl().classList.remove("talking")}
+function mkRender(){
+  mkStopAudio(); const [ok,n]=mkStats();
+  if(mkI>=mkOrder.length){
+    const rev=mkOrder.filter(i=>mkRes[i]!==1);
+    $("mkCard").innerHTML=`<div class="qn">Result</div><div class="qres">${ok} / ${n}</div>
+      <p class="qfb">${ok>=n*.8?"🏆 Nee interview ku ready kutty!":"💪 Nalla start! Keela irukkura topics revise pannu, thirumba try pannu."}</p>
+      ${rev.length?`<p class="note">Revise: ${[...new Set(rev.map(i=>window.MOCK[i].t))].map(esc).join(", ")}</p>`:""}
+      <div class="controls"><button class="btn play" id="mkAgain" type="button">↺ Thirumba start</button>${rev.length?`<button class="btn" id="mkRev" type="button">Revise list mattum</button>`:""}</div>`;
+    return;
+  }
+  const i=mkOrder[mkI], m=window.MOCK[i];
+  $("mkCard").innerHTML=`<div class="qn">Kelvi ${mkI+1} / ${mkOrder.length} · ${esc(m.t)} · ${esc(m.l)} · Ready ${ok}/${n}</div>
+    <h3 class="qq">${esc(m.q)}</h3>
+    <div class="controls"><button class="btn" id="mkHear" type="button">🔊 Malli Akka kelvi</button><span class="mk-timer" id="mkT">⏱ 60</span>
+      <button class="btn play" id="mkShow" type="button">Answer paaru 👀</button></div>
+    <div id="mkAns" hidden><ul class="mk-ans">${m.a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
+      <div class="controls"><button class="btn mk-ok" id="mkOk" type="button">✔ Correct ah sonnen</button><button class="btn" id="mkNo" type="button">↺ Revise venum</button></div></div>`;
+  mkLeft=60; mkTimer=setInterval(()=>{mkLeft--; const t=$("mkT"); if(t) t.textContent="⏱ "+Math.max(0,mkLeft); if(mkLeft<=0){clearInterval(mkTimer); if(t) t.classList.add("over")}},1000);
+  if(soundOn) mkHear(i);
+}
+function mkHear(i){mkAudio.pause();if(synth)synth.cancel();const fb=()=>{girl().classList.remove("talking");if(soundOn&&synth)speak(window.MOCK[i].q)};
+  mkAudio.onerror=fb;mkAudio.src=`audio/mq-${i+1}.mp3`;girl().classList.add("talking");mkAudio.onended=()=>girl().classList.remove("talking");mkAudio.play().catch(e=>{if(e&&e.name==="NotAllowedError")girl().classList.remove("talking")})}
+$("mkCard").onclick=e=>{const id=e.target.id, i=mkOrder[mkI];
+  if(id==="mkHear") mkHear(i);
+  else if(id==="mkShow"){clearInterval(mkTimer);$("mkAns").hidden=false;e.target.hidden=true}
+  else if(id==="mkOk"||id==="mkNo"){mkRes[i]=id==="mkOk"?1:0;store.set("obs-mock",mkRes);fx(id==="mkOk"?"good-"+rnd(4):"retry-1");mkI++;mkRender()}
+  else if(id==="mkAgain") mkStart();
+  else if(id==="mkRev"){mkOrder=shuffle(mkOrder.filter(i=>mkRes[i]!==1));mkI=0;mkRender()}};
+$("mkLvl").onchange=mkStart;
+
+// ---------- Views ----------
+const VIEWS={class:["classView","navClass",""],cheat:["cheat","navCheat","cheatsheet"],proj:["proj","navProj","project"],mock:["mock","navMock","mock"]};
+function showView(v){
+  for(const [k,[sec,btn]] of Object.entries(VIEWS)){$(sec).hidden=k!==v; $(btn).classList.toggle("on",k===v)}
+  if(v!=="class"){stop();setPlaying(false)}
+  if(v==="mock"){if(!mkOrder.length) mkStart()} else mkStopAudio();
+}
+const viewFromHash=()=>Object.keys(VIEWS).find(k=>VIEWS[k][2]&&"#"+VIEWS[k][2]===location.hash)||"class";
+$("navClass").onclick=()=>{showView("class");history.replaceState(null,"",location.pathname)};
+$("navCheat").onclick=()=>{location.hash="cheatsheet";showView("cheat")};
+$("navProj").onclick=()=>{location.hash="project";showView("proj")};
+$("navMock").onclick=()=>{location.hash="mock";showView("mock")};
+window.addEventListener("hashchange",()=>showView(viewFromHash()));
+
+renderList(); renderScene(); renderLab(); renderCheat(); renderProj();
+showView(viewFromHash());
+</script>
